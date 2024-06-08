@@ -9,7 +9,7 @@ public class LeaderElection implements Watcher {
     private static final int SESSION_TIMEOUT = 3000;
     private static final String ELECTION_NAMESPACE ="/election";
     private ZooKeeper zooKeeper;
-    private String currentZnodeName;
+    private String currentZnoeName;
 
     public void connectToZookeeper() throws IOException {
         this.zooKeeper = new ZooKeeper(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT, this);
