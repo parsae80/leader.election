@@ -49,6 +49,8 @@ public class LeaderElection implements Watcher {
         if (smallestChild.equals(currentZnodeName)){
             System.out.println("I am the leader");
             return;
+        }else{
+            System.out.println( smallestChild + "is the leader");
         }
     }
 
