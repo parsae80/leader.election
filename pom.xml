@@ -51,7 +51,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>distributed.systems.Main</mainClass>
+                            <mainClass>distributed.systems.LeaderElection</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
