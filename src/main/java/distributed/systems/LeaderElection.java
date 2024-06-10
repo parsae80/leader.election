@@ -16,6 +16,8 @@ public class LeaderElection implements Watcher {
 
     public void connectToZookeeper() throws IOException {
         this.zooKeeper = new ZooKeeper(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT, this);
+        // Wait for the connection to establish
+//        TimeUnit.SECONDS.sleep(2);
     }
 
     public void close() throws InterruptedException {
@@ -38,27 +40,37 @@ public class LeaderElection implements Watcher {
 
     public void volunteerForLeadership() throws KeeperException, InterruptedException {
         String znodePrefix = ELECTION_NAMESPACE + "/c_";
-        String znodeFullPath = zooKeeper.create(znodePrefix, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL_SEQUENTIAL);
-        System.out.println("Volunteered for leadership. Znode name: " + znodeFullPath);
-        this.currentZnodeName = znodeFullPath.replace(ELECTION_NAMESPACE + "/", "");
+        try {
+            String znodeFullPath = zooKeeper.create(znodePrefix, new byte[]{}, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.EPHEMERAL_SEQUENTIAL);
+            System.out.println("Volunteered for leadership. Znode name: " + znodeFullPath);
+            this.currentZnodeName = znodeFullPath.replace(ELECTION_NAMESPACE + "/", "");
+        } catch (KeeperException | InterruptedException e) {
+            System.err.println("Failed to create znode: " + e.getMessage());
+            throw e;
+        }
         // Adding delay for debugging
-        TimeUnit.SECONDS.sleep(5);
+        TimeUnit.SECONDS.sleep(2);
     }
 
     public void electLeader() throws KeeperException, InterruptedException {
-        List<String> children = zooKeeper.getChildren(ELECTION_NAMESPACE, false);
-        Collections.sort(children);
-        String smallestChild = children.get(0);
+        try {
+            List<String> children = zooKeeper.getChildren(ELECTION_NAMESPACE, false);
+            Collections.sort(children);
+            String smallestChild = children.get(0);
 
-        System.out.println("Children nodes: " + children);
-        System.out.println("Current node: " + currentZnodeName);
-        System.out.println("Smallest node: " + smallestChild);
+            System.out.println("Children nodes: " + children);
+            System.out.println("Current node: " + currentZnodeName);
+            System.out.println("Smallest node: " + smallestChild);
 
-        if (smallestChild.equals(currentZnodeName)) {
-            System.out.println("I am the leader");
-        } else {
-            System.out.println("I am not the leader, " + smallestChild + " is the leader");
+            if (smallestChild.equals(currentZnodeName)) {
+                System.out.println("I am the leader");
+            } else {
+                System.out.println("I am not the leader, " + smallestChild + " is the leader");
+            }
+        } catch (KeeperException | InterruptedException e) {
+            System.err.println("Failed to get children nodes: " + e.getMessage());
+            throw e;
         }
     }
 
