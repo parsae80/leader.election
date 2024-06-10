@@ -5,19 +5,19 @@ import org.apache.zookeeper.*;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class LeaderElection implements Watcher {
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
     private static final int SESSION_TIMEOUT = 3000;
-    private static final String ELECTION_NAMESPACE = "/election";
+    private static final String ELECTION_NAMESPACE = "/election/order_management";
     private ZooKeeper zooKeeper;
     private String currentZnodeName;
 
-    public void connectToZookeeper() throws IOException {
+    public void connectToZookeeper() throws IOException, InterruptedException {
         this.zooKeeper = new ZooKeeper(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT, this);
-        // Wait for the connection to establish
-//        TimeUnit.SECONDS.sleep(2);
+        synchronized (zooKeeper) {
+            zooKeeper.wait();  // Wait for the connection to establish
+        }
     }
 
     public void close() throws InterruptedException {
@@ -29,6 +29,9 @@ public class LeaderElection implements Watcher {
         if (event.getType() == Event.EventType.None) {
             if (event.getState() == Event.KeeperState.SyncConnected) {
                 System.out.println("Successfully connected to ZooKeeper");
+                synchronized (zooKeeper) {
+                    zooKeeper.notify();  // Signal that connection is established
+                }
             } else {
                 synchronized (zooKeeper) {
                     System.out.println("Disconnected from ZooKeeper event");
@@ -49,8 +52,6 @@ public class LeaderElection implements Watcher {
             System.err.println("Failed to create znode: " + e.getMessage());
             throw e;
         }
-        // Adding delay for debugging
-        TimeUnit.SECONDS.sleep(2);
     }
 
     public void electLeader() throws KeeperException, InterruptedException {
@@ -75,11 +76,13 @@ public class LeaderElection implements Watcher {
     }
 
     public void run() {
-        try {
-            volunteerForLeadership();
-            electLeader();
-        } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
+        // The run method waits for the ZooKeeper connection to be established
+        synchronized (zooKeeper) {
+            try {
+                zooKeeper.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -87,10 +90,17 @@ public class LeaderElection implements Watcher {
         try {
             LeaderElection leaderElection = new LeaderElection();
             leaderElection.connectToZookeeper();
+
+            // Calling these methods outside the run method
+            leaderElection.volunteerForLeadership();
+            leaderElection.electLeader();
+
             leaderElection.run();
             leaderElection.close();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+        } catch (KeeperException e) {
+            throw new RuntimeException(e);
         }
     }
 }
